@@ -1,0 +1,18 @@
+dependencies:
+  override:
+    - npm config set progress false
+    - set -o pipefail; pyenv exec pip install -U pip setuptools | cat
+
+test:
+  override:
+    - ~/girder/cmake/run_circleci.sh:
+        parallel: true
+
+deployment:
+  master:
+    branch: master
+    owner: girder
+    commands:
+      - curl 'https://doc.esdoc.org/api/create' -X POST --data-urlencode "gitUrl=git@github.com:girder/girder.git"
+      - ./scripts/galaxy_deploy.sh
+      - git push git@github.com:girder/girder.git master:2.x-maintenance
