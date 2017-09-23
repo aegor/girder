@@ -63,7 +63,6 @@ if(RUN_CORE_TESTS)
   # Upload test uses mongo replicaset and a lot of resources, so we run it by itself
   add_python_test(upload RUN_SERIAL RESOURCE_LOCKS replicaset REQUIRED_FILES "${MONGOD_EXECUTABLE}" "${MONGOS_EXECUTABLE}")
   add_python_test(user)
-  add_python_test(webroot)
   add_python_test(path_utilities)
   add_python_test(setup_database)
 
