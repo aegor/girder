@@ -60,7 +60,6 @@ if(RUN_CORE_TESTS)
   add_python_test(size)
   add_python_test(stream BIND_SERVER TIMEOUT 90)
   add_python_test(system)
-  add_python_test(token)
   # Upload test uses mongo replicaset and a lot of resources, so we run it by itself
   add_python_test(upload RUN_SERIAL RESOURCE_LOCKS replicaset REQUIRED_FILES "${MONGOD_EXECUTABLE}" "${MONGOS_EXECUTABLE}")
   add_python_test(user)
