@@ -81,3 +81,15 @@ def server(db):
     cherrypy.engine.unsubscribe('stop', girder.events.daemon.stop)
     cherrypy.engine.stop()
     cherrypy.engine.exit()
+
+
+@pytest.fixture
+def admin(db, model):
+    yield model('user').createUser(email='admin@email.com', login='admin', firstName='Admin',
+                                   lastName='Admin', password='password', admin=True)
+
+
+@pytest.fixture
+def user(db, model):
+    yield model('user').createUser(email='user@email.com', login='user', firstName='user',
+                                   lastName='user', password='password', admin=False)
