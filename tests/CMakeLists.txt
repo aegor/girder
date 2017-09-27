@@ -30,12 +30,9 @@ if(RUN_CORE_TESTS)
 
   # These are performed approximately in the order listed.
   add_python_test(api_describe)
-  add_python_test(api_key)
-  add_python_test(access)
   add_python_test(assetstore)
   add_python_test(collection)
   add_python_test(custom_root)
-  add_python_test(events)
   add_python_test(file)
   add_python_test(filter_logging)
   add_python_test(find_entry_point_plugins)
