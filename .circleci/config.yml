@@ -1,8 +1,11 @@
 version: 2
 jobs:
-  build_py2:
+  py2_serverInstall_serverTest:
     docker:
-      - image: girder/girder_test:latest
+      # This image uses the oldest version of many dependencies
+      - image: girder/girder_test_py2:latest
+      # Use the oldest supported MongoDB
+      - image: mongo:2.6
 
     working_directory: /home/circleci/project # as $CIRCLE_WORKING_DIRECTORY
 
@@ -11,13 +14,13 @@ jobs:
           path: girder
 
       - restore_cache:
-          key: venv-{{ checksum "girder/setup.py" }}-{{ checksum "girder/requirements-dev.txt" }}
+          key: venv-py2-{{ checksum "girder/setup.py" }}-{{ checksum "girder/requirements-dev.txt" }}
       - run:
-          name: Create virtualenv (if necessary)
-          command: if [ ! -d venv ]; then virtualenv venv; fi
+          name: Create virtual environment (if necessary)
+          command: if [ ! -d girder_env ]; then virtualenv girder_env; fi
       - run:
-          name: Activate virtualenv
-          command: echo "source $CIRCLE_WORKING_DIRECTORY/venv/bin/activate" >> $BASH_ENV
+          name: Activate virtual environment
+          command: echo "source $CIRCLE_WORKING_DIRECTORY/girder_env/bin/activate" >> $BASH_ENV
       - run:
           name: Upgrade Python toolchain
           command: pip install --upgrade pip setuptools virtualenv
@@ -31,8 +34,108 @@ jobs:
             pip install -e girder/clients/python
             pip install -r girder/requirements-dev.txt
       - save_cache:
-          paths: venv
-          key: venv-{{ checksum "girder/setup.py" }}-{{ checksum "girder/requirements-dev.txt" }}
+          paths: girder_env
+          key: venv-py2-{{ checksum "girder/setup.py" }}-{{ checksum "girder/requirements-dev.txt" }}
+
+      - run:
+          name: Create Girder build directory
+          command: mkdir girder_build
+      - run:
+          name: Run CTest
+          command: |
+            touch test_failed
+            ctest -VV -S "$CIRCLE_WORKING_DIRECTORY/girder/cmake/circle_continuous.cmake"
+          environment:
+            TEST_GROUP: python
+            PYTHON_VERSION: 2.7
+            PYTHON_EXECUTABLE: /home/circleci/project/girder_env/bin/python
+            VIRTUALENV_EXECUTABLE: /home/circleci/project/girder_env/bin/virtualenv
+          working_directory: girder_build
+
+  py3_serverInstall:
+    docker:
+      # This image uses the newest version of many dependencies
+      - image: girder/girder_test_py3:latest
+
+    working_directory: /home/circleci/project # as $CIRCLE_WORKING_DIRECTORY
+
+    steps:
+      - checkout:
+          path: girder
+
+      - restore_cache:
+          key: venv-py3-{{ checksum "girder/setup.py" }}-{{ checksum "girder/requirements-dev.txt" }}
+      - run:
+          name: Create virtual environment (if necessary)
+          command: if [ ! -d girder_env ]; then python3 -m venv girder_env; fi
+      - run:
+          name: Activate virtual environment
+          command: echo "source $CIRCLE_WORKING_DIRECTORY/girder_env/bin/activate" >> $BASH_ENV
+      - run:
+          name: Upgrade Python toolchain
+          command: pip install --upgrade pip setuptools
+      - run:
+          name: Install Codecov client
+          command: pip install codecov
+      - run:
+          name: Install Girder
+          command: |
+            pip install -e girder[plugins,sftp]
+            pip install -e girder/clients/python
+            pip install -r girder/requirements-dev.txt
+      - save_cache:
+          paths: girder_env
+          key: venv-py3-{{ checksum "girder/setup.py" }}-{{ checksum "girder/requirements-dev.txt" }}
+
+      - persist_to_workspace:
+          root: /home/circleci/project
+          paths:
+            - girder
+            - girder_env
+
+  py3_serverTest:
+    docker:
+      - image: girder/girder_test_py3:latest
+      # Use the latest MongoDB
+      - image: circleci/mongo:3.4
+
+    working_directory: /home/circleci/project # as $CIRCLE_WORKING_DIRECTORY
+
+    steps:
+      - attach_workspace:
+          at: /home/circleci/project
+      - run:
+          name: Activate virtual environment
+          command: echo "source $CIRCLE_WORKING_DIRECTORY/girder_env/bin/activate" >> $BASH_ENV
+
+      - run:
+          name: Create Girder build directory
+          command: mkdir girder_build
+      - run:
+          name: Run CTest
+          command: |
+            touch test_failed
+            ctest -VV -S "$CIRCLE_WORKING_DIRECTORY/girder/cmake/circle_continuous.cmake"
+          environment:
+            TEST_GROUP: python
+            PYTHON_VERSION: 3.6
+            PYTHON_EXECUTABLE: /home/circleci/project/girder_env/bin/python
+            VIRTUALENV_EXECUTABLE: /home/circleci/project/girder_env/bin/python3 -m venv
+          working_directory: girder_build
+
+  py3_webBuild_webTest:
+    docker:
+      - image: girder/girder_test_py3:latest
+      - image: circleci/mongo:3.4
+
+    working_directory: /home/circleci/project # as $CIRCLE_WORKING_DIRECTORY
+
+    steps:
+      - attach_workspace:
+          at: /home/circleci/project
+      - run:
+          name: Activate virtual environment
+          command: echo "source $CIRCLE_WORKING_DIRECTORY/girder_env/bin/activate" >> $BASH_ENV
 
       - restore_cache:
           key: npm-{{ checksum "girder/package-lock.json" }}
@@ -45,30 +148,6 @@ jobs:
           paths: npm_cache
           key: npm-{{ checksum "girder/package-lock.json" }}
 
-      - persist_to_workspace:
-          root: /home/circleci/project
-          paths:
-            - girder
-            - venv
-
-  test_py2_server:
-    docker:
-      - image: girder/girder_test:latest
-        environment:
-          # Required for CMake
-          PYTHON_VERSION: 2.7.14
-          TEST_GROUP: python
-      - image: mongo:3.4
-
-    working_directory: /home/circleci/project
-
-    steps:
-      - attach_workspace:
-          at: /home/circleci/project
-      - run:
-          name: Activate virtualenv
-          command: echo "source $CIRCLE_WORKING_DIRECTORY/venv/bin/activate" >> $BASH_ENV
-
       - run:
           name: Create Girder build directory
           command: mkdir girder_build
@@ -78,44 +157,9 @@ jobs:
             touch test_failed
             ctest -VV -S "$CIRCLE_WORKING_DIRECTORY/girder/cmake/circle_continuous.cmake"
           environment:
-            COVERAGE_EXECUTABLE: /home/circleci/project/venv/bin/coverage
-            FLAKE8_EXECUTABLE: /home/circleci/project/venv/bin/flake8
-            VIRTUALENV_EXECUTABLE: /home/circleci/project/venv/bin/virtualenv
-            PYTHON_EXECUTABLE: /home/circleci/project/venv/bin/python
-            JASMINE_TIMEOUT: 15000
-            BABEL_ENV: cover
-          working_directory: girder_build
-
-  test_py2_web:
-    docker:
-      - image: girder/girder_test:latest
-        environment:
-          PYTHON_VERSION: 2.7.14
-          TEST_GROUP: browser
-      - image: mongo:3.4
-
-    working_directory: /home/circleci/project
-
-    steps:
-      - attach_workspace:
-          at: /home/circleci/project
-      - run:
-          name: Activate virtualenv
-          command: echo "source $CIRCLE_WORKING_DIRECTORY/venv/bin/activate" >> $BASH_ENV
-
-      - run:
-          name: Create Girder build directory
-          command: mkdir girder_build
-      - run:
-          name: Run CTest
-          command: |
-            touch test_failed
-            ctest -VV -S "$CIRCLE_WORKING_DIRECTORY/girder/cmake/circle_continuous.cmake"
-          environment:
-            COVERAGE_EXECUTABLE: /home/circleci/project/venv/bin/coverage
-            FLAKE8_EXECUTABLE: /home/circleci/project/venv/bin/flake8
-            VIRTUALENV_EXECUTABLE: /home/circleci/project/venv/bin/virtualenv
-            PYTHON_EXECUTABLE: /home/circleci/project/venv/bin/python
+            TEST_GROUP: browser
+            PYTHON_VERSION: 3.6
+            PYTHON_EXECUTABLE: /home/circleci/project/girder_env/bin/python
             JASMINE_TIMEOUT: 15000
             BABEL_ENV: cover
           working_directory: girder_build
@@ -127,12 +171,13 @@ jobs:
 
 workflows:
   version: 2
-  build_and_test_py2:
+  test_all:
     jobs:
-      - build_py2
-      - test_py2_server:
+      - py2_serverInstall_serverTest
+      - py3_serverInstall
+      - py3_serverTest:
           requires:
-            - build_py2
-      - test_py2_web:
+            - py3_serverInstall
+      - py3_webBuild_webTest:
           requires:
-            - build_py2
+            - py3_serverInstall

@@ -13,9 +13,6 @@ RUN sudo apt-get update && sudo apt-get install -y \
     libsasl2-dev
 
 # Install Girder development prereqs
-RUN sudo mkdir --parents "/opt/cmake" \
-  && curl --location "http://cmake.org/files/v3.4/cmake-3.4.3-Linux-x86_64.tar.gz" | \
-    gunzip --stdout | \
-    sudo tar --extract --directory "/opt/cmake" --strip-components 1 \
-  && sudo ln --symbolic --force "/opt/cmake/bin/cmake" "/usr/local/bin/cmake" \
-  && sudo ln --symbolic --force "/opt/cmake/bin/ctest" "/usr/local/bin/ctest"
+# CMake < 3.1 does not install properly from binaries, so fetch 3.0 from packages
+RUN sudo apt-get update && sudo apt-get install -y \
+    cmake
