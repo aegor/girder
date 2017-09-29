@@ -21,16 +21,12 @@ import six
 
 from ..describe import Description, autoDescribeRoute
 from ..rest import Resource as BaseResource, RestException, setResponseHeader, setContentDisposition
-from girder.constants import AccessType, TokenScope
+from girder.constants import AccessType, ResourceRegistry, TokenScope
 from girder.api import access
 from girder.utility import parseTimestamp
 from girder.utility import ziputil
 from girder.utility import path as path_util
 from girder.utility.progress import ProgressContext
-
-# Plugins can modify this set to allow other types to be searched
-allowedSearchTypes = {'collection', 'folder', 'group', 'item', 'user'}
-allowedDeleteTypes = {'collection', 'file', 'folder', 'group', 'item', 'user'}
 
 
 class Resource(BaseResource):
@@ -68,15 +64,16 @@ class Resource(BaseResource):
     def search(self, q, mode, types, level, limit, offset):
         level = AccessType.validate(level)
         user = self.getCurrentUser()
+        allowedSearchModes = ResourceRegistry.ALLOWED_SEARCH_MODE
 
-        if mode == 'text':
-            method = 'textSearch'
+        if mode in allowedSearchModes:
+            method = allowedSearchModes[mode]['method']
         else:
-            method = 'prefixSearch'
+            return None
 
         results = {}
         for modelName in types:
-            if modelName not in allowedSearchTypes:
+            if modelName not in allowedSearchModes[mode]['types']:
                 continue
 
             if '.' in modelName:
@@ -85,12 +82,32 @@ class Resource(BaseResource):
             else:
                 model = self.model(modelName)
 
-            results[modelName] = [
-                model.filter(d, user) for d in getattr(model, method)(
-                    query=q, user=user, limit=limit, offset=offset, level=level)
-            ]
+            if self._isDefault(mode):
+                print mode
+                results[modelName] = [
+                    model.filter(d, user) for d in getattr(model, method)(
+                        query=q, user=user, limit=limit, offset=offset, level=level)
+                ]
+            else:
+                results[modelName] = [
+                    model.filter(d, user) for d in method(
+                        query=q, user=user, limit=limit, offset=offset, level=level)
+                ]
 
         return results
+
+    def _isDefault(self, mode):
+        return mode in {'text', 'prefix'}
+
+    def addSearchMode(self, mode, types, handler):
+        ResourceRegistry.ALLOWED_SEARCH_MODE.update({
+            mode: {
+                'types': types,
+                'method': handler
+            }})
+
+    def removeSearchMode(self, mode):
+        return ResourceRegistry.ALLOWED_SEARCH_MODE.pop(mode, None)
 
     def _validateResourceSet(self, resources, allowedModels=None):
         """
@@ -229,7 +246,7 @@ class Resource(BaseResource):
     )
     def delete(self, resources, progress):
         user = self.getCurrentUser()
-        self._validateResourceSet(resources, allowedDeleteTypes)
+        self._validateResourceSet(resources, ResourceRegistry.ALLOWED_DELETE_TYPES)
         total = sum([len(resources[key]) for key in resources])
         with ProgressContext(
                 progress, user=user, title='Deleting resources',
