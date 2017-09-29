@@ -1,4 +1,5 @@
 #!/bin/bash
+set -x
 
 export PYTHON_VERSION=`pyenv version-name`
 export COVERAGE_EXECUTABLE=`pyenv which coverage`
@@ -20,7 +21,12 @@ esac
 
 mkdir $HOME/build
 touch $HOME/build/test_failed
-ctest -VV -S $HOME/girder/cmake/circle_continuous.cmake
+ctest -E '^py_coverage' -VV -S $HOME/girder/cmake/circle_continuous.cmake
+
+if [ "$TEST_GROUP" == "python" ]; then
+    pytest
+    ctest -VV -R '^py_coverage'
+fi
 
 # Convert CTest output to Junit and ensure CircleCI will include it in its summary
 pip install scikit-ci-addons==0.15.0

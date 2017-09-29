@@ -1,0 +1,3 @@
+[run]
+omit = girder/external
+parallel = True
