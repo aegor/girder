@@ -5,6 +5,7 @@ from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource
 from girder.constants import AccessType
+from girder.models.model_base import Model
 from girder.utility.model_importer import ModelImporter
 
 import dicom
@@ -41,6 +42,22 @@ class DicomItem(Resource):
             baselineFileMeta = removeUniqueMetadata(baselineFileMeta, additionalDicomMeta)
         item['dicomMeta'] = baselineFileMeta
         ModelImporter.model('item').save(item)
+
+
+def searchInMetadata(query, offset=0, limit=0, sort=None, fields=None,
+       filters=None, **kwargs):
+    model = Model()
+    '''
+    1. Search for dicom items in all items
+    2. Look in the ['dicomMeta']
+    3. create 4 different modes
+        - full text search for value
+        - prefix search for value
+        - search one item by key and value
+        - search for key and value matching like 'key'='value'
+    '''
+    q = { 'dicomMeta': { '$exists': True } }
+    return model.find(q)
 
 
 def removeUniqueMetadata(dicomMeta, additionalMeta):
