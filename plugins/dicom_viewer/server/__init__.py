@@ -7,11 +7,8 @@ from girder.api.rest import Resource
 from girder.constants import AccessType
 from girder.models.model_base import Model
 from girder.utility.model_importer import ModelImporter
-
 import dicom
 import six
-from six.moves import map as itermap
-from six.moves import filter as iterfilter
 
 
 class DicomItem(Resource):
@@ -29,18 +26,20 @@ class DicomItem(Resource):
         Try to convert an existing item into a "DICOM item", which contains a
         "dicomMeta" field with DICOM metadata that is common to all DICOM files.
         """
-        allDicomMeta = iterfilter(
-            None,
-            itermap(parse_file, ModelImporter.model('item').childFiles(item))
-        )
-        try:
-            baselineFileMeta = next(allDicomMeta)
-        except StopIteration:
-            # No Dicom files
-            return
-        for additionalDicomMeta in allDicomMeta:
-            baselineFileMeta = removeUniqueMetadata(baselineFileMeta, additionalDicomMeta)
-        item['dicomMeta'] = baselineFileMeta
+        item['dicom'] = {}
+        item['dicom']['meta'] = None
+        item['dicom']['files'] = []
+
+        for file in ModelImporter.model('item').childFiles(item):
+            dicomMeta = parse_file(file)
+            if dicomMeta is None:
+                continue
+            item['dicom']['files'].append(file)
+            if item['dicom']['meta'] is None:
+                item['dicom']['meta'] = dicomMeta
+            else:
+                item['dicom']['meta'] = removeUniqueMetadata(item['dicom']['meta'], dicomMeta)
+
         ModelImporter.model('item').save(item)
 
 
@@ -136,16 +135,16 @@ def handler(event):
     if fileMetadata is None:
         return
     item = ModelImporter.model('item').load(file['itemId'], force=True)
-    if 'dicomMeta' in item:
-        item['dicomMeta'] = removeUniqueMetadata(item['dicomMeta'], fileMetadata)
+    if 'meta' in item['dicom']:
+        item['dicom']['meta'] = removeUniqueMetadata(item['dicom']['meta'], fileMetadata)
     else:
         # In this case the uploaded file is the first of the item
-        item['dicomMeta'] = fileMetadata
+        item['dicom']['meta'] = fileMetadata
     ModelImporter.model('item').save(item)
 
 
 def load(info):
-    ModelImporter.model('item').exposeFields(level=AccessType.READ, fields={'dicomMeta'})
+    ModelImporter.model('item').exposeFields(level=AccessType.READ, fields={'dicom'})
     events.bind('data.process', 'dicom_viewer', handler)
     dicomItem = DicomItem()
     info['apiRoot'].item.route(

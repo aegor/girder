@@ -1,5 +1,3 @@
-import _ from 'underscore';
-
 import { getCurrentUser } from 'girder/auth';
 import { AccessType } from 'girder/constants';
 import events from 'girder/events';
@@ -19,7 +17,6 @@ wrap(ItemView, 'render', function (render) {
             }));
         }
         this.$('.g-item-header').after('<div class="g-dicom-view"></div>');
-        // WAIT to change the endpoint
         const view = new DicomView({
             el: this.$('.g-dicom-view'),
             parentView: this,
@@ -27,21 +24,30 @@ wrap(ItemView, 'render', function (render) {
         });
         view.render();
     }, this);
-    console.log(this.model);
     return render.call(this);
 });
 
 ItemView.prototype.events['click .g-dicom-parse-item'] = function () {
     restRequest({
         method: 'POST',
-        url: `item/${this.model.id}/parseDicom`
-    }).done(_.bind(function (resp) {
-        // Show up a message to alert the user it was done
-        events.trigger('g:alert', {
-            icon: 'ok',
-            text: 'Dicom item parsed.',
-            type: 'success',
-            timeout: 2000
+        url: `item/${this.model.id}/parseDicom`,
+        error: null
+    })
+        .done((resp) => {
+            // Show up a message to alert the user it was done
+            events.trigger('g:alert', {
+                icon: 'ok',
+                text: 'Dicom item parsed.',
+                type: 'success',
+                timeout: 4000
+            });
+        })
+        .fail((resp) => {
+            events.trigger('g:alert', {
+                icon: 'cancel',
+                text: 'No Dicom metadata.',
+                type: 'danger',
+                timeout: 4000
+            });
         });
-    }, this));
 };
