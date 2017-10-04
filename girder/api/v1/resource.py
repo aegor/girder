@@ -52,7 +52,7 @@ class Resource(BaseResource):
         Description('Search for resources in the system.')
         .param('q', 'The search query.')
         .param('mode', 'The search mode. Can use either a text search or a '
-               'prefix-based search.', enum=('text', 'prefix'), required=False,
+               'prefix-based search.', required=False,
                default='text')
         .jsonParam('types', 'A JSON list of resource types to search for, e.g. '
                    '["user", "folder", "item"].', requireArray=True)

@@ -4,11 +4,13 @@ from girder import events
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource
+from girder.api.v1.resource import Resource as ResourceAPI
 from girder.constants import AccessType
 from girder.models.model_base import Model
 from girder.utility.model_importer import ModelImporter
 import dicom
 import six
+import re
 
 
 class DicomItem(Resource):
@@ -42,11 +44,12 @@ class DicomItem(Resource):
 
         ModelImporter.model('item').save(item)
 
-
 def searchInMetadata(query, offset=0, limit=0, sort=None, fields=None,
        filters=None, **kwargs):
-    model = Model()
+    #model = Model()
     '''
+    TODO:
+
     1. Search for dicom items in all items
     2. Look in the ['dicomMeta']
     3. create 4 different modes
@@ -55,8 +58,9 @@ def searchInMetadata(query, offset=0, limit=0, sort=None, fields=None,
         - search one item by key and value
         - search for key and value matching like 'key'='value'
     '''
-    q = { 'dicomMeta': { '$exists': True } }
-    return model.find(q)
+    #q = { 'dicomMeta': { '$exists': True } }
+    res = query
+    return res
 
 
 def removeUniqueMetadata(dicomMeta, additionalMeta):
@@ -149,3 +153,7 @@ def load(info):
     dicomItem = DicomItem()
     info['apiRoot'].item.route(
         'POST', (':id', 'parseDicom'), dicomItem.makeDicomItem)
+
+    # Allow the plugin to search into DICOM metadata
+    resource = ResourceAPI()
+    resource.addSearchMode('dicom', {'item'}, searchInMetadata)
