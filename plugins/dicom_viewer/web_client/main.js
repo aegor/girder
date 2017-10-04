@@ -4,7 +4,7 @@ import events from 'girder/events';
 import { restRequest } from 'girder/rest';
 import { wrap } from 'girder/utilities/PluginUtils';
 import ItemView from 'girder/views/body/ItemView';
-
+import SearchFieldWidget from 'girder/views/widgets/SearchFieldWidget';
 import DicomView from './views/DicomView';
 import parseDicomItemTemplate from './templates/parseDicomItem.pug';
 
@@ -24,6 +24,11 @@ wrap(ItemView, 'render', function (render) {
         });
         view.render();
     }, this);
+    return render.call(this);
+});
+
+wrap(SearchFieldWidget, 'render', function (render) {
+    this.modes.push('dicom');
     return render.call(this);
 });
 
