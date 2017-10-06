@@ -40,7 +40,7 @@ class DicomItem(Resource):
 
         if len(dicomFiles) is not 0:
             # Sort the dicom files
-            dicomFiles = sorted(dicomFiles,key=_sort_key)
+            dicomFiles = sorted(dicomFiles, key=_sort_key)
             # Store in the item
             item['dicom'] = {}
             item['dicom']['meta'] = metadataReference
@@ -50,10 +50,10 @@ class DicomItem(Resource):
 
 
 def _extractFileData(file, dicom):
-    '''
+    """
     Extract the usefull data to be stored in the `item['dicom']['files']`.
     In this way it become simpler to sort them and store them.
-    '''
+    """
     return {
         '_id': file.get('_id'),
         'name': file.get('name'),
@@ -64,9 +64,9 @@ def _extractFileData(file, dicom):
 
 
 def _sort_key(f):
-    '''
+    """
     These properties are used to sort the files into the item
-    '''
+    """
     return (
         f.get('name'),
         f.get('SeriesNumber'),
@@ -76,11 +76,11 @@ def _sort_key(f):
 
 
 def removeUniqueMetadata(dicomMeta, additionalMeta):
-    '''
+    """
     Return only the common data between the two inputs.
     Only work if all the data element are hashable,
     this means not have any dict or list as properties
-    '''
+    """
     return dict(
         set(
             (
